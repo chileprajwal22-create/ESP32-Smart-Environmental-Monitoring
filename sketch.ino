@@ -1,62 +1,65 @@
+
 #include <DHT.h>
 
-// Sensor and LED pin configuration
+// Hardware configuration
 #define DHTPIN 4
 #define DHTTYPE DHT22
 #define LED_PIN 2
 
 DHT dht(DHTPIN, DHTTYPE);
 
-// Sensor reading interval
-unsigned long previousSensorMillis = 0;
-const unsigned long sensorInterval = 2000;
+// Timing configuration
+const unsigned long SENSOR_INTERVAL_MS = 2000;
+const float TEMP_THRESHOLD_C = 30.0f;
 
-// Temperature alert threshold
-const float TEMP_THRESHOLD = 30.0;
+unsigned long previousSensorMillis = 0;
 
 void setup() {
-  pinMode(LED_PIN, OUTPUT);
-
   Serial.begin(115200);
+
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LOW);
+
   dht.begin();
 
-  Serial.println("Smart Environmental Monitoring System");
-  Serial.println("-------------------------------------");
-  Serial.println("Temperature alert threshold: 30 C");
+  Serial.println("ESP32 Environmental Monitor");
+  Serial.println("Debug mode started");
 }
 
 void loop() {
-  unsigned long currentMillis = millis();
+  const unsigned long currentMillis = millis();
 
-  // Read sensor every 2 seconds
-  if (currentMillis - previousSensorMillis >= sensorInterval) {
+  // Read the sensor at fixed intervals without blocking delay()
+  if (currentMillis - previousSensorMillis >= SENSOR_INTERVAL_MS) {
     previousSensorMillis = currentMillis;
 
-    float temperature = dht.readTemperature();
-    float humidity = dht.readHumidity();
+    const float temperature = dht.readTemperature();
+    const float humidity = dht.readHumidity();
 
-    // Check whether sensor readings are valid
+    // Detect invalid sensor readings before using the values
     if (isnan(temperature) || isnan(humidity)) {
-      Serial.println("ERROR: Sensor reading failed!");
+      Serial.println("[ERROR] DHT22 reading failed");
       digitalWrite(LED_PIN, LOW);
       return;
     }
 
-    // Display sensor readings
-    Serial.print("Temperature: ");
-    Serial.print(temperature);
+    // Print validated readings for debugging
+    Serial.print("[OK] Temperature: ");
+    Serial.print(temperature, 1);
     Serial.print(" C | Humidity: ");
-    Serial.print(humidity);
+    Serial.print(humidity, 1);
     Serial.println(" %");
 
-    // Activate LED if temperature is too high
-    if (temperature >= TEMP_THRESHOLD) {
-      digitalWrite(LED_PIN, HIGH);
-      Serial.println("ALERT: High temperature!");
-    } else {
-      digitalWrite(LED_PIN, LOW);
-      Serial.println("Temperature normal.");
-    }
+    // Update the alert output
+    const bool highTemperature =
+        temperature >= TEMP_THRESHOLD_C;
+
+    digitalWrite(LED_PIN, highTemperature ? HIGH : LOW);
+
+    Serial.print("[DEBUG] LED alert: ");
+    Serial.println(highTemperature ? "ON" : "OFF");
+  }
+}
 
     Serial.println("------------------------------");
   }
